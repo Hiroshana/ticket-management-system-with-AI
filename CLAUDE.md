@@ -12,7 +12,7 @@ An AI-powered support ticket management system for handling student support emai
 | Frontend   | React 18, TypeScript, Vite, Tailwind CSS v4     |
 | Backend    | Express 4, TypeScript, Bun                      |
 | Database   | PostgreSQL via Prisma ORM                       |
-| Auth       | express-session (database sessions)             |
+| Auth       | Better Auth v1 (database sessions via Prisma)   |
 | AI         | Claude API (`@anthropic-ai/sdk`)                |
 | Email      | SendGrid or Mailgun (Phase 6)                   |
 
@@ -121,10 +121,67 @@ bun run db:studio            # open Prisma Studio
 - CSS entry uses `@import "tailwindcss"` (not the old `@tailwind` directives)
 - Reconfigure via CSS `@theme` blocks if custom tokens are needed
 
+## Authentication (Better Auth)
+
+### Server (`server/src/lib/auth.ts`)
+- Better Auth with `prismaAdapter` (PostgreSQL)
+- Email/password enabled
+- Custom user field: `role` (string, defaults to `"AGENT"`)
+- Trusted origins from `CLIENT_URL` env var
+- Mounted at `/api/auth/*` via `toNodeHandler(auth)` in `index.ts`
+
+### Middleware (`server/src/middleware/auth.ts`)
+- `requireAuth` — validates session, attaches `req.user`, returns 401 if missing
+- `requireAdmin` — same + checks `role === "ADMIN"`, returns 403 otherwise
+- Both use `auth.api.getSession({ headers: fromNodeHeaders(req.headers) })`
+
+### Client API endpoints (called via `client/src/lib/api.ts`)
+| Action      | Endpoint                        |
+|-------------|---------------------------------|
+| Login       | `POST /api/auth/sign-in/email`  |
+| Logout      | `POST /api/auth/sign-out`       |
+| Get session | `GET /api/auth/get-session`     |
+
+All requests use `credentials: "include"` for cookie-based sessions.
+
+### Database models (managed by Better Auth)
+- **User** — id, email, emailVerified, name, image, role, createdAt, updatedAt
+- **Session** — token, expiration, IP, userAgent
+- **Account** — OAuth provider data, credentials
+- **Verification** — email verification tokens
+
+### Environment variables
+```
+BETTER_AUTH_URL=http://localhost:3001
+CLIENT_URL=http://localhost:5173
+DATABASE_URL=postgresql://...
+```
+
+### Creating users
+Use `auth.api.signUpEmail()` (not raw Prisma) to create users — this creates both `User` and `Account` records. Then update `role` via Prisma if needed. See `server/src/prisma/seed.ts` and `server/src/routes/users.ts`.
+
+### Express type augmentation (`server/src/types/express.d.ts`)
+```ts
+declare global {
+  namespace Express {
+    interface Request {
+      user?: { id: string; email: string; name: string; role: string };
+    }
+  }
+}
+```
+
+## shadcn/ui
+
+- Installed in `client/` with preset `b2pzIe` (style: `radix-nova`, icons: `lucide`)
+- Primary color: purple `oklch(0.457 0.24 277.023)`, font: Inter Variable
+- Add components: `npx shadcn@latest add <component>` from `client/`
+- **React 18 + react-hook-form:** shadcn CLI v4 targets React 19 (no `forwardRef`). On React 18, any input component used with `register()` must be wrapped with `React.forwardRef` — otherwise the ref is stripped and validation breaks. Already applied to `Input`.
+
 ## Implementation Phases
 
 - [x] Phase 1: Project setup (monorepo, Express, React, Prisma)
-- [ ] Phase 2: Authentication (login page, session middleware, route protection)
+- [x] Phase 2: Authentication (login page, session middleware, route protection)
 - [ ] Phase 3: User management (admin CRUD for agents)
 - [ ] Phase 4: Ticket CRUD (list with filters, detail view)
 - [ ] Phase 5: AI features (classify, summarize, suggest reply, knowledge base)
