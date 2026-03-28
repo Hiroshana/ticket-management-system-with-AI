@@ -53,7 +53,7 @@ router.post("/", requireAuth, async (req: Request, res: Response) => {
       body,
       fromEmail,
       fromName,
-      createdById: req.session.userId,
+      createdById: req.user?.id,
     },
   });
   res.status(201).json(ticket);

@@ -24,14 +24,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     api
       .me()
-      .then((u) => setUser(u as User))
+      .then((data) => setUser((data as { user: User } | null)?.user ?? null))
       .catch(() => setUser(null))
       .finally(() => setLoading(false));
   }, []);
 
   async function login(email: string, password: string) {
-    const u = await api.login(email, password);
-    setUser(u as User);
+    const data = await api.login(email, password);
+    setUser((data as { user: User }).user);
   }
 
   async function logout() {

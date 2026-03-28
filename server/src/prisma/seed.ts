@@ -1,36 +1,21 @@
-import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma";
+import { auth } from "../lib/auth";
+
+async function seedUser(email: string, name: string, password: string, role: "ADMIN" | "AGENT") {
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    console.log(`Skipping ${email} — already exists`);
+    return;
+  }
+  const result = await auth.api.signUpEmail({ body: { email, name, password } });
+  await prisma.user.update({ where: { id: result.user.id }, data: { role } });
+  console.log(`Seeded ${role.toLowerCase()}:`, email);
+}
 
 async function main() {
-  // Create admin user
-  const adminPassword = await bcrypt.hash("admin123", 10);
-  const admin = await prisma.user.upsert({
-    where: { email: "admin@example.com" },
-    update: {},
-    create: {
-      email: "admin@example.com",
-      name: "Admin User",
-      password: adminPassword,
-      role: "ADMIN",
-    },
-  });
-  console.log("Seeded admin:", admin.email);
+  await seedUser("admin@example.com", "Admin User", "admin123", "ADMIN");
+  await seedUser("agent@example.com", "Support Agent", "agent123", "AGENT");
 
-  // Create sample agent
-  const agentPassword = await bcrypt.hash("agent123", 10);
-  const agent = await prisma.user.upsert({
-    where: { email: "agent@example.com" },
-    update: {},
-    create: {
-      email: "agent@example.com",
-      name: "Support Agent",
-      password: agentPassword,
-      role: "AGENT",
-    },
-  });
-  console.log("Seeded agent:", agent.email);
-
-  // Seed knowledge base
   const articles = [
     {
       title: "How to reset your password",

@@ -1,7 +1,7 @@
 import express from "express";
-import session from "express-session";
 import cors from "cors";
-import authRouter from "./routes/auth";
+import { toNodeHandler } from "better-auth/node";
+import { auth } from "./lib/auth";
 import usersRouter from "./routes/users";
 import ticketsRouter from "./routes/tickets";
 import aiRouter from "./routes/ai";
@@ -15,22 +15,11 @@ app.use(
     credentials: true,
   })
 );
+
+app.all("/api/auth/*", toNodeHandler(auth));
+
 app.use(express.json());
 
-app.use(
-  session({
-    secret: process.env.SESSION_SECRET ?? "dev-secret-change-in-production",
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
-    },
-  })
-);
-
-app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/tickets", ticketsRouter);
 app.use("/api/ai", aiRouter);

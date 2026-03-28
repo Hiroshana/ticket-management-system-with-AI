@@ -1,7 +1,7 @@
 import { Router, Request, Response } from "express";
-import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma";
-import { requireAdmin, requireAuth } from "../middleware/auth";
+import { auth } from "../lib/auth";
+import { requireAdmin } from "../middleware/auth";
 
 const router = Router();
 
@@ -29,9 +29,10 @@ router.post("/", requireAdmin, async (req: Request, res: Response) => {
     return;
   }
 
-  const hashed = await bcrypt.hash(password, 10);
-  const user = await prisma.user.create({
-    data: { email, name, password: hashed, role: "AGENT" },
+  const result = await auth.api.signUpEmail({ body: { email, name, password } });
+  const user = await prisma.user.update({
+    where: { id: result.user.id },
+    data: { role: "AGENT" },
     select: { id: true, email: true, name: true, role: true, createdAt: true },
   });
   res.status(201).json(user);
@@ -39,12 +40,11 @@ router.post("/", requireAdmin, async (req: Request, res: Response) => {
 
 // PATCH /api/users/:id — admin only
 router.patch("/:id", requireAdmin, async (req: Request, res: Response) => {
-  const { name, email, password } = req.body;
+  const { name, email } = req.body;
 
   const data: Record<string, string> = {};
   if (name) data.name = name;
   if (email) data.email = email;
-  if (password) data.password = await bcrypt.hash(password, 10);
 
   const user = await prisma.user.update({
     where: { id: req.params.id },
