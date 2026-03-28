@@ -3,7 +3,8 @@
     "allow": [
       "mcp__context7__query-docs",
       "Bash(bun run:*)",
-      "Bash(bunx prisma:*)"
+      "Bash(bunx prisma:*)",
+      "Bash(bun add:*)"
     ]
   }
 }
