@@ -1,1 +1,14 @@
-.sfdx
+node_modules/
+.env
+.env.local
+dist/
+build/
+*.js.map
+bun.lockb
+
+# Prisma
+server/src/generated/
+
+# OS
+.DS_Store
+Thumbs.db
