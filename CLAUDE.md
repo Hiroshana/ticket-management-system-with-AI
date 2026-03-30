@@ -22,6 +22,8 @@ An AI-powered support ticket management system for handling student support emai
 /
 ├── CLAUDE.md
 ├── package.json          # Bun workspace root (workspaces: [client, server])
+├── playwright.config.ts  # e2e test config (Chromium, ports 5173 + 3001)
+├── e2e/                  # Playwright test files
 ├── client/               # React frontend (port 5173)
 │   ├── vite.config.ts    # @tailwindcss/vite plugin + /api proxy to :3001
 │   └── src/
@@ -39,14 +41,17 @@ An AI-powered support ticket management system for handling student support emai
 └── server/               # Express backend (port 3001)
     ├── prisma/schema.prisma
     └── src/
-        ├── index.ts             # app entry, cors, session, routes
+        ├── index.ts             # app entry, cors, session, routes, error handler
+        ├── lib/auth.ts          # Better Auth config (BETTER_AUTH_SECRET required)
         ├── lib/prisma.ts        # singleton PrismaClient
         ├── middleware/auth.ts   # requireAuth, requireAdmin
         ├── prisma/seed.ts       # admin + agent + knowledge base seed
+        ├── scripts/
+        │   └── create-test-db.ts  # creates ticket_management_test DB if missing
         └── routes/
             ├── auth.ts          # POST /login, POST /logout, GET /me
             ├── users.ts         # CRUD — admin only
-            ├── tickets.ts       # CRUD + filter/sort
+            ├── tickets.ts       # CRUD + filter/sort (sortBy allowlisted)
             └── ai.ts            # classify, summarize, suggest-reply
 ```
 
@@ -94,12 +99,17 @@ Copy `server/.env.example` to `server/.env`:
 
 ```
 DATABASE_URL=postgresql://user:password@localhost:5432/ticket_management
-SESSION_SECRET=change-this-to-a-random-secret
+BETTER_AUTH_SECRET=change-this-to-a-random-secret-min-32-chars
+BETTER_AUTH_URL=http://localhost:3001
 CLIENT_URL=http://localhost:5173
 ANTHROPIC_API_KEY=your-anthropic-api-key
 NODE_ENV=development
 PORT=3001
 ```
+
+Generate `BETTER_AUTH_SECRET` with: `openssl rand -base64 32`
+
+For e2e testing, `server/.env.test` points to `ticket_management_test` (gitignored). Same keys, different `DATABASE_URL`.
 
 ## Dev Commands
 
@@ -113,6 +123,12 @@ bun run db:generate          # generate Prisma client (run after schema changes)
 bun run db:migrate           # apply migrations
 bun run db:seed              # seed admin + agent + knowledge base
 bun run db:studio            # open Prisma Studio
+
+# E2e testing (from root)
+bun run test:e2e             # create test DB + migrate + seed + run Playwright
+bun run test:e2e:ui          # same but opens Playwright UI
+# First time only:
+bunx playwright install chromium
 ```
 
 ## Tailwind CSS v4 Notes
@@ -129,6 +145,7 @@ bun run db:studio            # open Prisma Studio
 - Custom user field: `role` (string, defaults to `"AGENT"`)
 - Trusted origins from `CLIENT_URL` env var
 - Mounted at `/api/auth/*` via `toNodeHandler(auth)` in `index.ts`
+- `secret` set from `BETTER_AUTH_SECRET` env var (required)
 
 ### Middleware (`server/src/middleware/auth.ts`)
 - `requireAuth` — validates session, attaches `req.user`, returns 401 if missing
@@ -178,6 +195,13 @@ declare global {
 - Add components: `npx shadcn@latest add <component>` from `client/`
 - **React 18 + react-hook-form:** shadcn CLI v4 targets React 19 (no `forwardRef`). On React 18, any input component used with `register()` must be wrapped with `React.forwardRef` — otherwise the ref is stripped and validation breaks. Already applied to `Input`.
 
+## Security Notes
+
+- `PATCH /api/tickets/:id` — `assignedToId`, `aiSummary`, `aiReply` are admin-only fields; returns 403 for non-admin
+- `GET /api/tickets` — `sortBy` is allowlisted to `[createdAt, updatedAt, subject, status, category]`
+- Global async error handler in `index.ts` catches all unhandled route errors
+- Remaining pre-production TODOs: rate limiting on sign-in, input length validation on tickets, self-deletion guard on `DELETE /api/users/:id`, move seed credentials to env vars
+
 ## Implementation Phases
 
 - [x] Phase 1: Project setup (monorepo, Express, React, Prisma)
@@ -203,6 +227,7 @@ When working with any library in this project, **always fetch up-to-date docs vi
 | React Router       | `/remix-run/react-router`              |
 | Tailwind CSS v4    | `/tailwindlabs/tailwindcss.com`        |
 | TypeScript         | `/microsoft/typescript`                |
+| Playwright         | `/microsoft/playwright`                |
 
 ### How to use context7
 

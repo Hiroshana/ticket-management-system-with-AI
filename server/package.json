@@ -7,7 +7,10 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:seed": "bun run src/prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "db:create:test": "bun run src/scripts/create-test-db.ts",
+    "db:migrate:test": "prisma migrate deploy",
+    "db:seed:test": "bun run src/prisma/seed.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.54.0",

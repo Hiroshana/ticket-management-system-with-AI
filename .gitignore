@@ -9,6 +9,11 @@ bun.lockb
 # Prisma
 server/src/generated/
 
+# Test environment
+server/.env.test
+playwright-report/
+test-results/
+
 # OS
 .DS_Store
 Thumbs.db
