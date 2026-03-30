@@ -9,13 +9,23 @@ const router = Router();
 router.get("/", requireAuth, async (req: Request, res: Response) => {
   const { status, category, sortBy = "createdAt", order = "desc" } = req.query;
 
+  const ALLOWED_SORT_FIELDS = ["createdAt", "updatedAt", "subject", "status", "category"] as const;
+  const ALLOWED_ORDER_VALUES = ["asc", "desc"] as const;
+
+  const safeSortBy = ALLOWED_SORT_FIELDS.includes(sortBy as (typeof ALLOWED_SORT_FIELDS)[number])
+    ? (sortBy as string)
+    : "createdAt";
+  const safeOrder = ALLOWED_ORDER_VALUES.includes(order as (typeof ALLOWED_ORDER_VALUES)[number])
+    ? (order as "asc" | "desc")
+    : "desc";
+
   const where: Record<string, unknown> = {};
   if (status) where.status = status as TicketStatus;
   if (category) where.category = category as TicketCategory;
 
   const tickets = await prisma.ticket.findMany({
     where,
-    orderBy: { [sortBy as string]: order as "asc" | "desc" },
+    orderBy: { [safeSortBy]: safeOrder },
     include: {
       assignedTo: { select: { id: true, name: true, email: true } },
     },
@@ -66,9 +76,17 @@ router.patch("/:id", requireAuth, async (req: Request, res: Response) => {
   const data: Record<string, unknown> = {};
   if (status) data.status = status as TicketStatus;
   if (category !== undefined) data.category = category as TicketCategory;
-  if (assignedToId !== undefined) data.assignedToId = assignedToId;
-  if (aiSummary !== undefined) data.aiSummary = aiSummary;
-  if (aiReply !== undefined) data.aiReply = aiReply;
+
+  // Admin-only fields
+  if (assignedToId !== undefined || aiSummary !== undefined || aiReply !== undefined) {
+    if (req.user?.role !== "ADMIN") {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    if (assignedToId !== undefined) data.assignedToId = assignedToId;
+    if (aiSummary !== undefined) data.aiSummary = aiSummary;
+    if (aiReply !== undefined) data.aiReply = aiReply;
+  }
 
   const ticket = await prisma.ticket.update({
     where: { id: req.params.id },
