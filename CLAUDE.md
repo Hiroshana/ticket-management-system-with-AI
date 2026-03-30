@@ -109,8 +109,6 @@ PORT=3001
 
 Generate `BETTER_AUTH_SECRET` with: `openssl rand -base64 32`
 
-For e2e testing, `server/.env.test` points to `ticket_management_test` (gitignored). Same keys, different `DATABASE_URL`.
-
 ## Dev Commands
 
 ```bash
@@ -124,11 +122,9 @@ bun run db:migrate           # apply migrations
 bun run db:seed              # seed admin + agent + knowledge base
 bun run db:studio            # open Prisma Studio
 
-# E2e testing (from root)
-bun run test:e2e             # create test DB + migrate + seed + run Playwright
+# E2e testing — see playwright-e2e-tester agent for full details
+bun run test:e2e             # create DB + migrate + seed + run Playwright
 bun run test:e2e:ui          # same but opens Playwright UI
-# First time only:
-bunx playwright install chromium
 ```
 
 ## Tailwind CSS v4 Notes
