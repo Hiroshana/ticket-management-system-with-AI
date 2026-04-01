@@ -1,0 +1,2 @@
+# Playwright authenticated session state — contains real cookies, never commit
+.auth/

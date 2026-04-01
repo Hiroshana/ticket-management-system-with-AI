@@ -22,7 +22,7 @@ An AI-powered support ticket management system for handling student support emai
 /
 ├── CLAUDE.md
 ├── package.json          # Bun workspace root (workspaces: [client, server])
-├── playwright.config.ts  # e2e test config (Chromium, ports 5173 + 3001)
+├── playwright.config.ts  # e2e test config (Chromium, client :5173, test server :3002)
 ├── e2e/                  # Playwright test files
 ├── client/               # React frontend (port 5173)
 │   ├── vite.config.ts    # @tailwindcss/vite plugin + /api proxy to :3001
@@ -38,7 +38,7 @@ An AI-powered support ticket management system for handling student support emai
 │           ├── TicketsPage.tsx
 │           ├── TicketDetailPage.tsx
 │           └── UsersPage.tsx
-└── server/               # Express backend (port 3001)
+└── server/               # Express backend (dev: port 3001, test: port 3002)
     ├── prisma/schema.prisma
     └── src/
         ├── index.ts             # app entry, cors, session, routes, error handler
@@ -190,6 +190,8 @@ declare global {
 - Primary color: purple `oklch(0.457 0.24 277.023)`, font: Inter Variable
 - Add components: `npx shadcn@latest add <component>` from `client/`
 - **React 18 + react-hook-form:** shadcn CLI v4 targets React 19 (no `forwardRef`). On React 18, any input component used with `register()` must be wrapped with `React.forwardRef` — otherwise the ref is stripped and validation breaks. Already applied to `Input`.
+- **CardTitle** renders as `<div data-slot="card-title">` — it has no heading ARIA role. Use `getByText()` not `getByRole("heading")` in Playwright tests.
+- **Forms with zod + react-hook-form** must have `noValidate` on the `<form>` element — otherwise browser-native HTML5 validation blocks the submit event before zod validation runs.
 
 ## Security Notes
 
@@ -208,6 +210,26 @@ declare global {
 - [ ] Phase 6: Email integration (SendGrid/Mailgun inbound + outbound)
 - [ ] Phase 7: Dashboard (stats, category breakdown, recent tickets)
 - [ ] Phase 8: Polish & deployment (validation, Docker, Docker Compose)
+
+## Playwright e2e Testing
+
+### Port assignment
+- Dev server: `http://localhost:3001` (`server/.env`)
+- **Test server: `http://localhost:3002`** (`server/.env.test` — PORT=3002)
+- Vite client: `http://localhost:5173` (both envs)
+
+### playwright.config.ts webServer
+- The backend `url` must point to an endpoint that returns **HTTP 2xx** (e.g. `/api/auth/get-session`).
+- Playwright requires a 2xx response to recognise an already-running server (`reuseExistingServer: true`). The root path `/` returns 404 and causes Playwright to always try to start a new process.
+- The Vite `env.API_TARGET` must also be `http://localhost:3002` in the client webServer entry.
+
+### Selector pitfalls
+- **`CardTitle` is a `<div>`, not a heading** — use `getByText("Sign in", { exact: true })` not `getByRole("heading", { name: "Sign in" })`.
+- **Loading button text changes** — when a button transitions from "Sign in" to "Signing in...", the original `getByRole("button", { name: /sign in/i })` locator stops matching. Use a separate locator `getByRole("button", { name: /signing in/i })` for loading-state assertions.
+- **Use `{ exact: true }` for short badge strings** — `getByText("AGENT")` matches substrings ("Support Agent") and triggers strict mode violations.
+
+### Form validation
+- Always add `noValidate` to `<form>` elements that use react-hook-form + zod, otherwise the browser's native `type="email"` validation blocks submission before zod runs.
 
 ## Documentation — Always Use Context7
 

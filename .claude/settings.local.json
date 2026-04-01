@@ -10,7 +10,14 @@
       "Bash(npx shadcn@latest add card button input label form)",
       "Bash(npx shadcn@latest add form)",
       "Bash(node:*)",
-      "Bash(npx shadcn@latest add alert)"
+      "Bash(npx shadcn@latest add alert)",
+      "Bash(taskkill:*)",
+      "Bash(cmd /c \"taskkill /PID 3648 /F\" 2>&1)",
+      "Bash(netstat -ano)",
+      "Bash(powershell -Command \"Stop-Process -Id 3648 -Force\" 2>&1)",
+      "Bash(bunx playwright:*)",
+      "Bash(curl -s http://localhost:3002/api/auth/get-session)",
+      "Bash(curl:*)"
     ]
   }
 }
